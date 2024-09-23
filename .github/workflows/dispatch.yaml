@@ -1,0 +1,37 @@
+name: Dispatch
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  IMAGE: rancher/system-agent
+  TAG: ${{ github.ref_name }}
+  TAG_SUC: ${{ github.ref_name }}-suc
+
+jobs:
+  dispatch:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build-binary
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    strategy:
+      matrix:
+        rancher_branch: [ main ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      # - name: Retrieve token from vault
+      #   uses: rancher-eio/read-vault-secrets@main
+        # with:
+        #   secrets: |
+        #     secret/data/github/repo/${{ github.repository }}/github-token/credentials token | PAT_TOKEN ;
+      - name: Run dispatch
+        run: |
+          gh workflow run "System Agent Upgrade" --repo vardhaman22/rancher --ref ${{ matrix.rancher_branch }} -F system_agent_version=${{ github.ref_name }} -F source_author=${{ github.actor }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
